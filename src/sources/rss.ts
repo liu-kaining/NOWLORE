@@ -21,7 +21,7 @@ export class RssSource implements SourceAdapter {
       if (!title || !url) return [];
       const published = item.isoDate ?? item.pubDate;
       const parsedDate = published ? new Date(published) : context.now;
-      return [RawSignalSchema.parse({
+      const parsed = RawSignalSchema.safeParse({
         source: this.id,
         sourceType: "rss",
         externalId: item.guid,
@@ -30,8 +30,9 @@ export class RssSource implements SourceAdapter {
         url,
         publishedAt: Number.isNaN(parsedDate.getTime()) ? context.now.toISOString() : parsedDate.toISOString(),
         metrics: {},
-        tags: item.categories ?? [],
-      })];
+        tags: (item.categories ?? []).map((category) => cleanText(category, 80)).filter(Boolean).slice(0, 30),
+      });
+      return parsed.success ? [parsed.data] : [];
     });
   }
 }

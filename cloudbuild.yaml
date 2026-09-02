@@ -2,6 +2,9 @@ substitutions:
   _REGION: asia-east1
   _SERVICE: nowlore
   _REPOSITORY: nowlore
+  _PUBLIC_BASE_URL: https://nowlore.thetamind.ai
+  _ADMIN_TOKEN_SECRET: nowlore-admin-token
+  _CRON_TOKEN_SECRET: nowlore-cron-token
 
 steps:
   - name: node:22
@@ -24,7 +27,8 @@ steps:
       - --region=${_REGION}
       - --platform=managed
       - --allow-unauthenticated
-      - --set-env-vars=NODE_ENV=production,STORE_DRIVER=firestore,ASSET_DRIVER=r2,CHAIN_MODE=dry-run,SOLANA_MAINNET_ENABLED=false
+      - --set-env-vars=NODE_ENV=production,PUBLIC_BASE_URL=${_PUBLIC_BASE_URL},CORS_ORIGINS=${_PUBLIC_BASE_URL},STORE_DRIVER=firestore,AI_PROTOCOL=mock,ASSET_DRIVER=local,ASSET_PUBLIC_BASE_URL=${_PUBLIC_BASE_URL}/assets,CHAIN_MODE=dry-run,SIGNER_MODE=disabled,SOLANA_NETWORK=devnet,SOLANA_MAINNET_ENABLED=false
+      - --set-secrets=ADMIN_TOKEN=${_ADMIN_TOKEN_SECRET}:latest,CRON_TOKEN=${_CRON_TOKEN_SECRET}:latest
 
 images:
   - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${COMMIT_SHA}

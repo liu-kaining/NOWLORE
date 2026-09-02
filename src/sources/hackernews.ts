@@ -28,7 +28,7 @@ export class HackerNewsSource implements SourceAdapter {
     });
     return items.flatMap((item): RawSignal[] => {
       if (!item || item.type !== "story") return [];
-      return [RawSignalSchema.parse({
+      const parsed = RawSignalSchema.safeParse({
         source: this.id,
         sourceType: "hackernews",
         externalId: String(item.id),
@@ -38,7 +38,8 @@ export class HackerNewsSource implements SourceAdapter {
         publishedAt: new Date(item.time * 1_000).toISOString(),
         metrics: { score: item.score ?? 0, comments: item.descendants ?? 0 },
         tags: ["technology"],
-      })];
+      });
+      return parsed.success ? [parsed.data] : [];
     });
   }
 }

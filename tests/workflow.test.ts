@@ -23,6 +23,8 @@ describe("offline workflow", () => {
     const assessment = await context.oracle.evaluate(topic.id);
     expect(assessment.recommendation).toBe("design");
     let project = await context.forge.design(topic.id);
+    project = await context.projects.patch(project.id, { experimentWindowHours: 24 }, project.contentHash, "tester");
+    expect(new Date(project.experimentEndsAt).getTime() - new Date(project.experimentStartsAt).getTime()).toBe(24 * 3_600_000);
     project = await context.projects.review(project.id, "tester");
     project = await context.projects.approve(project.id, project.contentHash, "Reviewed", "tester");
     project = await context.assets.publish(project.id, "tester");

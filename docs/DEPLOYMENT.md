@@ -74,13 +74,22 @@ GCP_KMS_KEY_NAME=
 
 ## 5. 部署步骤
 
-1. 执行 lint、typecheck、test、build。
-2. 构建 Docker 镜像并记录 Git SHA、依赖 lock hash。
-3. 部署到 staging，执行 smoke 与 devnet 模拟。
-4. 更新 WORKLOG/CHANGELOG，审核配置 diff。
-5. 部署 production，但保持 `SOLANA_MAINNET_ENABLED=false`。
-6. 检查公开账本、审计链、任务和资产访问。
-7. 只有运营审批时短时启用主网能力；发行后可再次关闭。
+1. 在 Secret Manager 创建不少于 32 字符且彼此不同的 `nowlore-admin-token`、`nowlore-cron-token`，并只授予 Cloud Run 运行服务账号读取权限。
+2. 执行 lint、typecheck、test、build；构建镜像并记录 Git SHA、依赖 lock hash。
+3. `cloudbuild.yaml` 默认部署一个可启动的安全 dry-run：Firestore、mock AI、临时 local assets、disabled signer、devnet、mainnet off。域名默认 `https://nowlore.thetamind.ai`，可用 substitution 覆盖。
+4. 部署到 staging，检查 `/readyz`、公开档案、审计链和任务，再执行 devnet 模拟。
+5. 正式发行前将 assets 改为已验证的 R2 HTTPS 配置，通过 Secret Manager 注入 AI/R2/RPC/signer 凭据；禁止把秘密写进 `--set-env-vars` 或仓库。
+6. 更新 WORKLOG/CHANGELOG，审核配置 diff，再部署 production；仍保持 `SOLANA_MAINNET_ENABLED=false`。
+7. 只有运营审批时启用主网能力；发行后可再次关闭。
+
+默认构建可用：
+
+```bash
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_PUBLIC_BASE_URL=https://nowlore.thetamind.ai
+```
+
+该命令会产生外部云资源和费用，因此不由本仓库的本地测试自动执行。
 
 ## 6. 备份与恢复
 

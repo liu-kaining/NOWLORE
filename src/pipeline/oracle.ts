@@ -22,7 +22,7 @@ export class OracleService {
     const cached = Object.values(snapshot.assessments).find((item) => item.inputHash === inputHash && item.promptVersion === ASSESSMENT_PROMPT_VERSION);
     if (cached) return cached;
 
-    const output = await this.ai.generateStructured<AssessmentOutput>({
+    const generated = await this.ai.generateStructured<AssessmentOutput>({
       purpose: "assessment",
       system: ORACLE_SYSTEM_PROMPT,
       user: `Evaluate this topic. Cite evidence IDs in supporting and counter evidence.\n<evidence>${JSON.stringify(input)}</evidence>`,
@@ -30,6 +30,7 @@ export class OracleService {
       schema: AssessmentOutputSchema,
       fallback: () => mockAssessment(topic, signals),
     });
+    const output = applyDeterministicEvidencePolicy(generated, signals);
     const now = isoNow(this.clock);
     const descriptor = this.ai.descriptor();
     const assessment: Assessment = {
@@ -49,6 +50,31 @@ export class OracleService {
     });
     return assessment;
   }
+}
+
+const EVIDENCE_BLOCKLIST = [
+  { label: "death-or-violence", pattern: /\b(death|dead|died|killed|murder|suicide|shooting|massacre|fatalit(?:y|ies))\b|死亡|遇难|自杀|枪击|谋杀/i },
+  { label: "disaster", pattern: /\b(disaster|earthquake|tsunami|hurricane|wildfire|flood victims?)\b|灾难|地震|海啸|飓风|山火|洪灾/i },
+  { label: "minors", pattern: /\b(child|children|teenager|minor victim)\b|儿童|未成年人/i },
+  { label: "hate-or-harassment", pattern: /\b(hate crime|harassment|doxx(?:ing|ed)?)\b|仇恨犯罪|骚扰|人肉搜索/i },
+  { label: "politics-or-conflict", pattern: /\b(election|president|prime minister|invasion|civil war|armed conflict)\b|选举|总统|总理|入侵|内战|武装冲突/i },
+] as const;
+
+export function applyDeterministicEvidencePolicy(output: AssessmentOutput, signals: Signal[]): AssessmentOutput {
+  const evidence = signals.map((signal) => `${signal.title}\n${signal.summary}`).join("\n");
+  const hits = EVIDENCE_BLOCKLIST.filter(({ pattern }) => pattern.test(evidence)).map(({ label }) => `deterministic-block:${label}`);
+  if (hits.length === 0) return output;
+  return AssessmentOutputSchema.parse({
+    ...output,
+    scores: {
+      ...output.scores,
+      legal: Math.max(output.scores.legal, 90),
+      safety: Math.max(output.scores.safety, 95),
+      brand: Math.max(output.scores.brand, 90),
+    },
+    riskFlags: [...new Set([...hits, ...output.riskFlags])].slice(0, 20),
+    recommendation: "reject",
+  });
 }
 
 function publicEvidence(signal: Signal) {
