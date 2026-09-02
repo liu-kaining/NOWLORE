@@ -1,0 +1,30 @@
+substitutions:
+  _REGION: asia-east1
+  _SERVICE: nowlore
+  _REPOSITORY: nowlore
+
+steps:
+  - name: node:22
+    entrypoint: npm
+    args: ["ci"]
+  - name: node:22
+    entrypoint: npm
+    args: ["run", "check"]
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${COMMIT_SHA}", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["push", "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${COMMIT_SHA}"]
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${COMMIT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --set-env-vars=NODE_ENV=production,STORE_DRIVER=firestore,ASSET_DRIVER=r2,CHAIN_MODE=dry-run,SOLANA_MAINNET_ENABLED=false
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${COMMIT_SHA}

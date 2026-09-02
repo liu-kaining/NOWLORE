@@ -1,0 +1,13 @@
+node_modules/
+.npm-cache/
+dist/
+coverage/
+data/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+*.key
+*.pem
+service-account*.json
