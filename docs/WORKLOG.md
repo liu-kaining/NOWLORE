@@ -70,3 +70,39 @@
 - 升级 `@fastify/static` 至 10.1.3，消除路径穿越/路由守卫绕过；升级 `@google-cloud/firestore` 至 9.0.1，移除旧 Google 依赖链告警。
 - 复审计降至 13 条（6 high、7 moderate、0 critical）。剩余告警来自当前官方 Pump/Solana v1 工具链；npm 只提供会破坏 `create_v2` 兼容性的降级建议，因此未强行消警。
 - 新增 `docs/KNOWN_RISKS.md`，记录具体风险、可达性、缓解措施和主网上线前清单；主网能力继续默认关闭。
+
+## 2026-09-02
+
+### Node 22 / Pump 发行边界
+
+- 延续 Docker 生产验证。定点打包 Pump SDK 后，专项 Pump 模式先暴露动态 `require("buffer")`，注入 ESM require bridge 后又暴露 SDK 内部 `exports` 语义冲突；两次均为模块加载失败，没有签名或网络交易。
+- 最终不修改第三方包，使用 Node `createRequire` 显式选择 Pump 包公开的 CommonJS export；server 仍为 ESM，Pump 只在 `CHAIN_MODE=pump` 时动态加载。Node 22 镜像已能完整加载 SDK，并按预期停在 `SIGNER_DISABLED` 门禁。
+- Pump 构建增加项目/配置网络一致性校验，并在构建交易前通过公开 HTTPS 重新读取 SVG/metadata，校验真实响应大小、content type、SHA-256 以及 metadata 的 name/symbol/image。
+- 重构发送异常语义：签名完成后预先得到确定性交易签名；发送或确认结果不明时进入 submitted，不允许新交易覆盖。tracker 按签名将项目归并为 launched/failed，并追加审计事件。自动测试验证相同幂等键只调用一次链适配器。
+
+### 安全与可靠性加固
+
+- 外部采集 URL 增加 HTTP(S)-only、禁止 URL credential、私网/link-local/metadata/示例网段、DNS A/AAAA 校验、逐跳重定向验证、跨协议拒绝、跨域认证头移除、内容类型白名单及流式真实字节上限。
+- 首次真实源复测被本地受控网络的 `198.18.0.0/15` 出站映射全部拦截；该区段不是 RFC1918/metadata，且此环境以它承载受控公网代理，因此不再作为应用层硬阻断。生产仍要求 VPC egress/防火墙作为最终 DNS 重绑定边界。
+- Discovery 现在保留失败来源的真实 ID；有效 lease 返回结构化 409 `JOB_ALREADY_RUNNING`，新增故障隔离与 lease 测试。
+- 所有外部链接字段限制为 HTTP(S)，避免人工信号把 `javascript:` 等 scheme 带入档案；无效单条 RSS/HN 项目会被丢弃而不会拖垮整个来源。
+- 启用限制性 CSP。新增无效 URL API 测试时发现 Fastify 错误处理器注册晚于路由会把 ZodError 返回为 500；将处理器前置后稳定返回脱敏 400。
+- 新增独立于模型的证据敏感词政策；死亡/暴力、灾难、未成年人、仇恨骚扰、政治冲突会强制 recommendation=reject，并抬高 legal/safety/brand 风险，防止模型漏判绕过。
+- Project 编辑时同步实验窗口，结束时间必须为开始后的 1–720 个整小时。
+
+### 产品与运维完善
+
+- 运营台增加手工信号表单、项目证据/风险/来源展开；reviewed 项目必须主动勾选已核对证据、风险和内容哈希才能点击批准。
+- 管理 overview 返回项目关联的 assessment、signals、launches、metrics，支持审核上下文。
+- Cloud Build 默认部署配置改为实际可启动的安全 dry-run（Firestore/mock/local assets/disabled signer/devnet/mainnet off），管理员和 cron token 强制来自 Secret Manager；文档说明正式发行前再配置 R2/AI/RPC/signer。
+- 增加 JSON Store 20 路并发写、0600 文件权限与重启恢复测试。
+
+### 验证进度
+
+- `npm run check` 全部通过：10 个测试文件、33 个用例；lint、TypeScript strict、production Web/Server build、离线端到端 smoke 均成功。
+- 最终真实低量契约测试：Polymarket、Hacker News、Hugging Face 3/3 成功，共 9 条信号、6 个主题；评估 5 个，其中 design 1、watch 3、deterministic reject 1，生成 1 个草稿，无链上交易。
+- 生产依赖审计保持 0 critical、6 high、7 moderate；全部剩余项属于已记录的 Pump/Solana v1 传递依赖链。
+- 最终 Node 22 production 镜像构建成功；容器 `/healthz`、`/readyz`、公开 API、HTML/CSP 头均通过。镜像内直接调用官方 `createV2Instruction` 成功，program ID 为固定 Pump program，生成 16 个 account metas/106 bytes data；原生 bigint 可选 binding 缺失时 SDK 明确回退 pure JS，不影响该指令构建验证。
+- 通过应用内浏览器复查最终 production 容器：公开首页正确加载统计/空档案，运营台 token 认证成功，新增手工信号表单可见，桌面布局正常；临时浏览器页和 `--rm` 验证容器均已关闭/移除，本地保留 `nowlore:local-check` 镜像便于复验。
+- 将 Markdown 相对链接检查器加入 `npm run check`。首次纳入后 ESLint 指出脚本未显式声明 Node `process` 全局；改为 `node:process` 显式导入后复验。
+- 文档检查脚本纳入工程配置后再次从零构建 `nowlore:local-check`，Node 22 build/runtime 两阶段镜像成功。首次探针复验误用了不存在的 `/api/health` 与 `/api/ready`，均按预期返回 404；随即依据源码改用正式 `/healthz`、`/readyz`，并连同 `/api/public/stats`、CSP/安全响应头全部验证通过。临时 `--rm` 容器已停止并自动移除。

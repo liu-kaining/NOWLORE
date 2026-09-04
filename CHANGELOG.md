@@ -16,3 +16,7 @@ All notable changes to NOWLORE are documented here.
 - Human-gated project workflow, content-addressed assets, dry-run and official Pump SDK launch adapters.
 - Memory, atomic JSON and Firestore persistence; R2 and local asset publishing.
 - Audit hash chain, idempotent launch service, creator-vault tracking and automated test suite.
+- DNS-aware SSRF protection, redirect/content limits, restrictive CSP and HTTP(S)-only external links.
+- Deterministic sensitive-evidence policy that can override permissive AI output.
+- Ambiguous Solana submission recovery by deterministic signature without duplicate issuance.
+- Evidence-first approval UI, manual signal form, persistent JSON concurrency coverage and Node 22 Pump SDK interoperability.

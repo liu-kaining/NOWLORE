@@ -49,7 +49,7 @@
 
 ## 3. 验收命令
 
-计划提供：
+已提供并纳入 `npm run check`：
 
 ```bash
 npm ci
@@ -71,3 +71,11 @@ npm run smoke
 ## 5. 完成门槛
 
 P0/P1 缺陷为零；所有自动化命令通过；文档与实际环境变量/API/状态机一致；Git diff 不包含密钥或生成数据；工作日志记录最终验证结果和已知限制。
+
+## 6. 2026-09-02 验证结果
+
+- 10 个测试文件、33 个用例通过，包含 URL/重定向/流式大小/CSP、确定性敏感内容政策、来源故障隔离、任务 lease、JSON Store 并发与重启、审批哈希、submitted 防重复发行和 tracker 归并。
+- production Web/Server build、离线 discovery→launch→track smoke 通过。
+- Polymarket、Hacker News、Hugging Face 低量真实契约测试：3 个来源、9 条信号、无来源错误；未发送链上交易。
+- Node 22 Docker 中已加载 Pump 官方 SDK CommonJS 出口并验证 create_v2 指令边界；未配置签名器/资金，因此没有执行 devnet 或 mainnet 交易。
+- 主网测试明确不在自动测试内，保持关闭；剩余供应链风险见 [KNOWN_RISKS.md](KNOWN_RISKS.md)。

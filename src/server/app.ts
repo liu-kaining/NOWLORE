@@ -37,6 +37,10 @@ export async function buildApp(config: AppConfig, overrides: AppOverrides = {}) 
         scriptSrc: ["'self'"],
         scriptSrcAttr: ["'none'"],
         styleSrc: ["'self'"],
+        // All generated external assets are HTTPS. Omitting this directive
+        // keeps a production image testable over local HTTP without weakening
+        // the Cloudflare/Cloud Run HTTPS boundary.
+        upgradeInsecureRequests: null,
       },
     },
   });
